@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View } from "react-native";
+import { View , LogBox } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Font from "expo-font";
@@ -18,7 +18,6 @@ import StoreReviewChecker from "components/StoreReviewChecker";
 import { loadGlobalize } from "./i18";
 import AppNavigator from "./app/navigation/Navigator/AppNavigator";
 import store from "./app/redux/store";
-import { LogBox } from 'react-native';
 
 
 const supportedLanguages: string[] = [
@@ -58,7 +57,7 @@ const release = ExpoClientConfig.revisionId || "0.0.0";
 
 const App: React.FC = () => {
   enableScreens();
-  LogBox.ignoreLogs(['Warning: ...']);
+  LogBox.ignoreLogs(["Warning: ..."]);
   LogBox.ignoreAllLogs();
 
   let lang = localeExpo.substring(0, 2);
@@ -69,6 +68,7 @@ const App: React.FC = () => {
 
   const [ready, setReady] = useState(false);
   const [language, setLanguage] = useState(lang);
+  // console.log("Locale:", localeExpo);
 
   const [locale, setLocale] = useState(localeExpo);
 
