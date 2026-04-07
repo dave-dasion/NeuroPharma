@@ -1,0 +1,21 @@
+{
+	"ADD_EMISSION_SCREEN_TAB_NAME": "Условия",
+	"ADD_EMISSION_SCREEN_TITLE": "Связанные условия",
+	"ADD_EMISSION_SCREEN_ELECTRICITY_CONSUMPTION": "Потребление электроэнергии",
+	"ADD_EMISSION_SCREEN_DURATION": "Продолжительность",
+	"ADD_EMISSION_SCREEN_DISTANCE": "Расстояние",
+	"ADD_EMISSION_SCREEN_TOTAL": "Итого",
+	"ADD_EMISSION_SCREEN_QUANTITY": "Количество",
+	"ADD_EMISSION_SCREEN_QUANTITY_OF_EMISSION": "Количество эмиссии",
+	"ADD_EMISSION_SCREEN_ADD_THIS_EMISSION": "Добавить эту эмиссию",
+	"ADD_EMISSION_SCREEN_TEXTINPUT_PLACEHOLDER": "например, бургер, рейс из Парижа в Рим…",
+	"ADD_EMISSION_SCREEN_NAME_EMISSION": "Назовите эту эмиссию",
+	"ADD_EMISSION_SCREEN_DATE": "Дата",
+	"ADD_EMISSION_SCREEN_PICKER_MODAL_CONFIRM": "Подтвердить",
+	"ADD_EMISSION_SCREEN_PICKER_MODAL_CANCEL": "Отменить",
+	"ADD_EMISSION_SCREEN_ITEMS": "предмет(ы)",
+	"ADD_EMISSION_SCREEN_MEALS": "прием пищи",
+	"ADD_EMISSION_SCREEN_PERIODICITY": "Периодичность",
+	"ADD_EMISSION_SCREEN_NON_RECURRING": "Не повторяется",
+	"ADD_EMISSION_SCREEN_NAME": "Название"
+}

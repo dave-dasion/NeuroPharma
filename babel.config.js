@@ -1,0 +1,39 @@
+module.exports = function (api) {
+  api.cache(true);
+  return {
+    presets: ["babel-preset-expo"],
+    plugins: [
+      "@babel/plugin-transform-class-static-block",
+      "react-native-reanimated/plugin",
+      "module:react-native-dotenv",
+      [
+        "module-resolver",
+        {
+          root: ["."],
+          extensions: [".ios.js", ".android.js", ".js", ".ts", ".tsx", ".json"],
+          alias: {
+            components: "./app/components",
+            constant: "./app/constant",
+            ducks: "./app/ducks",
+            interfaces: "./app/interfaces",
+            navigation: "./app/navigation",
+            style: "./app/style",
+            utils: "./app/utils",
+          },
+        },
+      ],
+    ],
+    overrides: [
+      {
+        plugins: [
+          [
+            "@babel/plugin-transform-private-methods",
+            {
+              loose: true,
+            },
+          ],
+        ],
+      },
+    ],
+  };
+};

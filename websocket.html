@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px; margin: 5px; }
+        #status { margin: 10px 0; }
+        #transcript { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Voice Chat</h1>
+    <div id="status">Status: Disconnected</div>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <div id="transcript"></div>
+    <div id="error" class="error"></div>
+
+    <script>
+        const API_KEY = 'ak_f7d8a62e4b3c9m1n5p6q7r8s9t0';
+        const EMAIL = 'wayne@dasion.ai';
+        let ws;
+        let mediaRecorder;
+        let audioContext;
+        let isRecording = false;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+        const transcript = document.getElementById('transcript');
+        const error = document.getElementById('error');
+
+        // Initialize Audio Context
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Modified MediaRecorder setup with PCM format
+        async function startRecording() {
+            try {
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 44100
+                    } 
+                });
+
+                // Create audio processing nodes
+                const source = audioContext.createMediaStreamSource(stream);
+                const processor = audioContext.createScriptProcessor(16384, 1, 1); // ~371ms at 44.1kHz
+                
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                let lastSendTime = Date.now();
+                const SEND_INTERVAL = 500; // Still maintain 500ms minimum between sends
+
+                // Process audio data
+                processor.onaudioprocess = (e) => {
+                    if (ws.readyState === WebSocket.OPEN && isRecording) {
+                        const now = Date.now();
+                        if (now - lastSendTime >= SEND_INTERVAL) {
+                            const inputData = e.inputBuffer.getChannelData(0);
+                            const pcmData = new Int16Array(inputData.length);
+                            for (let i = 0; i < inputData.length; i++) {
+                                pcmData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                            }
+                            
+                            const base64Audio = btoa(String.fromCharCode.apply(null, new Uint8Array(pcmData.buffer)));
+                            ws.send(base64Audio);
+                            lastSendTime = now;
+                        }
+                    }
+                };
+
+                mediaRecorder = { 
+                    stream,
+                    source,
+                    processor,
+                    stop: () => {
+                        source.disconnect();
+                        processor.disconnect();
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                };
+
+                isRecording = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                status.textContent = 'Status: Recording';
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                error.textContent = `Microphone error: ${error.message}`;
+            }
+        }
+
+        // Modified playback function for PCM data
+        async function playAudio(base64Audio) {
+            try {
+                // Create audio context if needed
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                // Convert base64 to Int16Array (PCM data)
+                const binaryString = atob(base64Audio);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Create Int16Array from the raw bytes
+                const int16Data = new Int16Array(bytes.buffer);
+                
+                // Create Float32Array for audio playback
+                const floatData = new Float32Array(int16Data.length);
+                
+                // Convert Int16 to Float32 with proper scaling
+                for (let i = 0; i < int16Data.length; i++) {
+                    // Scale from -32768..32767 to -1..1
+                    floatData[i] = int16Data[i] / 32768.0;
+                }
+
+                // Create audio buffer
+                const audioBuffer = audioContext.createBuffer(1, floatData.length, 48000);
+                const channelData = audioBuffer.getChannelData(0);
+                channelData.set(floatData);
+
+                // Create source and gain nodes
+                const source = audioContext.createBufferSource();
+                const gainNode = audioContext.createGain();
+                
+                // Set volume
+                gainNode.gain.value = 0.7;  // 70% volume
+
+                // Connect nodes
+                source.buffer = audioBuffer;
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // Play the audio
+                source.start(0);
+
+                // Clean up when done
+                source.onended = () => {
+                    source.disconnect();
+                    gainNode.disconnect();
+                };
+
+                console.log('Playing audio:', {
+                    duration: audioBuffer.duration,
+                    sampleRate: audioBuffer.sampleRate,
+                    channels: audioBuffer.numberOfChannels,
+                    length: floatData.length
+                });
+
+            } catch (error) {
+                console.error('Error playing audio:', error);
+                console.error('Audio data details:', {
+                    base64Length: base64Audio.length,
+                    sampleRate: audioContext?.sampleRate
+                });
+            }
+        }
+
+        // Initialize WebSocket connection
+        function connectWebSocket() {
+            error.textContent = ''; // Clear any previous errors
+            console.log('Attempting to connect to WebSocket...');
+            
+            console.log("window.location.protocol",window.location.protocol);
+
+            // Get the current hostname and protocol
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'wss:';
+            const host = window.location.host || 'nodeapi.dasion-training.com'; // Add fallback
+            const wsUrl = `${protocol}//${host}/web-connection?apiKey=${API_KEY}&email=${EMAIL}`;
+            
+            console.log('Attempting connection to:', wsUrl); // Modified this log
+            
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    console.log('WebSocket connected!');
+                    status.textContent = 'Status: Connected';
+                    startBtn.disabled = false;
+                    error.textContent = '';
+                };
+
+                ws.onmessage = async (event) => {
+                    console.log('Received message from server');
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        console.log("response",data.audio)
+                        if (data.type === 'speech' || data.type === 'audio') {  // Handle both types
+                            console.log('Received audio data:', {   
+                                type: data.type,
+                                length: data.audio.length,
+                                timestamp: Date.now()
+                            });
+                            await playAudio(data.audio);
+                        } else if (data.type === 'connected') {
+                            console.log('Connection confirmed:', data.message);
+                        }
+                    } catch (e) {
+                        console.error('Error processing message:', e);
+                        error.textContent = 'Error processing server message';
+                    }
+                };
+
+                ws.onclose = (event) => {
+                    console.log('WebSocket disconnected:', event.code, event.reason);
+                    status.textContent = 'Status: Disconnected';
+                    startBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    error.textContent = `Connection closed: ${event.reason || 'Unknown reason'}`;
+                };
+
+                ws.onerror = (event) => {
+                    console.error('WebSocket error:', event);
+                    status.textContent = 'Status: Error';
+                    error.textContent = 'WebSocket connection error';
+                };
+            } catch (e) {
+                console.error('Error creating WebSocket:', e);
+                error.textContent = 'Error creating WebSocket connection';
+            }
+        }
+
+        // Modified stop function
+        function stopRecording() {
+            console.log('Stopping recording...');
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                status.textContent = 'Status: Connected';
+                console.log('Recording stopped');
+            }
+        }
+
+        // Event listeners
+        startBtn.onclick = startRecording;
+        stopBtn.onclick = stopRecording;
+
+        // Initialize connection
+        connectWebSocket();
+    </script>
+</body>
+</html> 
